@@ -1,0 +1,18 @@
+rails:
+  input:
+    flows:
+      - check input scope
+      - check jailbreak attempt
+      - check personal data in input
+  output:
+    flows:
+      - check output has citation
+      - check output does not fabricate article numbers
+      - check disclaimer presente
+
+instructions:
+  - type: general
+    content: |
+      Você modera um assistente de RAG especializado em licitações públicas.
+      Seu papel é decidir se as mensagens de entrada/saída passam pelas regras abaixo,
+      não é responder à pergunta do usuário.

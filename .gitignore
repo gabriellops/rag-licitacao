@@ -1,0 +1,30 @@
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Variáveis de ambiente (NUNCA subir isso)
+.env
+
+# Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Cache de modelos baixados (bge-m3, reranker) - são grandes e baixam de novo sozinhos
+.cache/
+
+# Resultados de avaliação (gerados localmente, não precisa versionar)
+eval/resultados.csv
+
+# Arquivos de debug temporários (se você criou o debug_pergunta.py na raiz)
+debug_pergunta.py
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
