@@ -3,7 +3,7 @@
 Chatbot RAG para ajudar partes interessadas de licitações (licitantes, pregoeiros,
 equipe técnica/jurídica) a tirarem dúvidas sobre leis, decretos, editais e termos de referência.
 
-**Stack:** LangChain · LangGraph · NeMo Guardrails · Qdrant · Gemini · Gradio
+**Stack:** LangChain · LangGraph · NeMo Guardrails · Qdrant · Gemini · Streamlit
 
 ## Arquitetura
 
@@ -14,13 +14,12 @@ equipe técnica/jurídica) a tirarem dúvidas sobre leis, decretos, editais e te
 - **Orquestração:** LangGraph (classificar → reescrever → recuperar → rerank → avaliar
   relevância → gerar → checar fundamentação)
 - **Guardrails:** NeMo Guardrails (escopo, jailbreak, PII, citação obrigatória, disclaimer)
-- **UI de testes:** Gradio (Hugging Face Spaces free tier não suporta mais Streamlit/Docker sem plano pago)
-
+- **UI de testes:** Streamlit
 ## Estrutura
 
 ```
 rag-licitacao/
-├── data/markdown/          # <- COLOQUE SEUS .md AQUI (pode usar subpastas)
+├── data/markdown/          # base de conhecimento
 ├── ingest/
 │   ├── config.py           # configs centrais (modelos, paths, chunking)
 │   ├── chunking.py         # markdown -> chunks com metadados
