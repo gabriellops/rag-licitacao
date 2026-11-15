@@ -32,5 +32,3 @@ CHUNK_SIZE = 1000          # usado só em blocos que ainda ficarem grandes após
 CHUNK_OVERLAP = 150
 
 # --- Recuperação ---
-TOP_K_RETRIEVE = int(os.getenv("TOP_K_RETRIEVE", 25))
-TOP_K_RERANK = int(os.getenv("TOP_K_RERANK", 5))

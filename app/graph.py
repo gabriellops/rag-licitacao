@@ -70,8 +70,10 @@ def no_reescrever(estado: EstadoRAG) -> EstadoRAG:
 
 @cronometrar("recuperar")
 def no_recuperar(estado: EstadoRAG) -> EstadoRAG:
+    # Reranker desativado: usa direto o top da busca densa do Qdrant.
+    # Reduz drasticamente o tempo de resposta; reavaliar se a qualidade cair.
     brutos = recuperar_chunks(estado["consulta_atual"])
-    estado["chunks"] = rerank_chunks(estado["consulta_atual"], brutos)
+    estado["chunks"] = brutos[: 8]  # equivalente ao TOP_K_RERANK, mas sem reordenar
     return estado
 
 
@@ -99,8 +101,8 @@ def _formatar_trechos(chunks: list[dict]) -> str:
 @cronometrar("avaliar_relevancia")
 def no_avaliar_relevancia(estado: EstadoRAG) -> EstadoRAG:
     chunks = estado["chunks"]
-    LIMIAR_RELEVANCIA = 0.3
-    estado["relevante"] = bool(chunks) and chunks[0]["rerank_score"] >= LIMIAR_RELEVANCIA
+    LIMIAR_RELEVANCIA = 0.4  # score do Qdrant tem escala diferente do rerank_score; ajuste testando
+    estado["relevante"] = bool(chunks) and chunks[0]["score"] >= LIMIAR_RELEVANCIA
     return estado
 
 @cronometrar("gerar_resposta")
