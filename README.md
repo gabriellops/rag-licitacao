@@ -1,102 +1,123 @@
 # Licite Mais
 
-Chatbot RAG para ajudar partes interessadas de licitações (licitantes, pregoeiros,
-equipe técnica/jurídica) a tirarem dúvidas sobre leis, decretos, editais e termos de referência.
+O Licite Mais é um chatbot de perguntas e respostas sobre licitações públicas no Brasil. A ideia é ajudar quem participa de pregões e contratações (licitantes, pregoeiros ou equipe técnica) a tirar dúvidas direto na legislação, sem precisar garimpar dezenas de páginas de lei.
 
-**Stack:** LangChain · LangGraph · NeMo Guardrails · Qdrant · Gemini · Streamlit
+Ele consulta uma base de normas já indexada (como a Lei nº 14.133/2021, decretos, instruções normativas e o FAQ do PNCP) e devolve a resposta com as citações numeradas e os links para as fontes originais. Se a base interna não cobrir a dúvida, o sistema faz uma busca na web para tentar responder. Também dá para anexar arquivos PDF ou DOCX direto no chat para contextualizar a pergunta.
 
-## Arquitetura
+## O que foi usado
 
-- **Embeddings:** `BAAI/bge-m3` (multilíngue, bom em português)
-- **Vector store:** Qdrant Cloud (free tier)
-- **Reranker:** `BAAI/bge-reranker-v2-m3`
-- **LLM:** Gemini 3.5 Flash Lite (geração) + Gemini 3.1 Flash-Lite (classificação/rails)
-- **Orquestração:** LangGraph (classificar → reescrever → recuperar → rerank → avaliar
-  relevância → gerar → checar fundamentação)
-- **Guardrails:** NeMo Guardrails (escopo, jailbreak, PII, citação obrigatória, disclaimer)
-- **UI de testes:** Streamlit
-## Estrutura
+O projeto roda em Python. A interface principal usa Streamlit (`ui/streamlit_app.py`), e há também uma versão alternativa em Gradio (`ui/gradio_app.py`).
 
-```
+Para o fluxo de conversa e busca, usei LangGraph e LangChain (`app/graph.py`), que coordenam saudação, checagem de escopo, reescrita de pergunta, recuperação de trechos e fallback na web. Os modelos de linguagem são da família Gemini: `gemini-3.5-flash-lite` gera as respostas e `gemini-3.1-flash-lite` cuida da classificação e da reescrita.
+
+Os arquivos Markdown de `data/markdown/` são divididos por hierarquia (`ingest/chunking.py`), vetorizados com `BAAI/bge-m3` e salvos no Qdrant Cloud. O repositório inclui um reranker (`BAAI/bge-reranker-v2-m3` em `app/reranker.py`), mas ele fica desativado por padrão no grafo para manter as respostas rápidas em CPU.
+
+Na camada de segurança e fontes extras, o NeMo Guardrails (`app/guardrails/`) bloqueia assuntos fora de escopo, tentativas de burlar instruções, envio de CPF/RG na pergunta e garante o aviso de que a resposta não substitui parecer jurídico. Quando a base local não cobre a pergunta, entra a busca na web com Tavily (`app/busca_web.py`). Para anexos enviados no chat, `pypdf` e `python-docx` extraem o texto direto em memória. Há ainda um script de avaliação com RAGAS em `eval/evaluate.py`.
+
+## Estrutura do projeto
+
+```text
 rag-licitacao/
-├── data/markdown/          # base de conhecimento
-├── ingest/
-│   ├── config.py           # configs centrais (modelos, paths, chunking)
-│   ├── chunking.py         # markdown -> chunks com metadados
-│   └── indexer.py          # embeddings + upload para o Qdrant
 ├── app/
-│   ├── llm.py              # instâncias do Gemini
-│   ├── prompts.py          # prompts do fluxo
-│   ├── retriever.py        # busca no Qdrant
-│   ├── reranker.py         # bge-reranker-v2-m3
-│   ├── graph.py            # grafo LangGraph (fluxo completo)
-│   ├── main.py             # junta guardrails + grafo
-│   └── guardrails/         # config.yml, rails.co, actions.py
-├── eval/
-│   ├── dataset_exemplo.jsonl
-│   └── evaluate.py         # avaliação com RAGAS
+│   ├── busca_web.py      # fallback na web com Tavily
+│   ├── graph.py          # fluxo principal no LangGraph
+│   ├── llm.py            # instâncias do Gemini
+│   ├── main.py           # junta guardrails de entrada/saída e o grafo
+│   ├── prompts.py        # prompts do sistema
+│   ├── reranker.py       # reranker opcional (bge-reranker-v2-m3)
+│   ├── retriever.py      # busca vetorial no Qdrant
+│   └── guardrails/       # regras e ações do NeMo Guardrails
+├── data/markdown/        # leis, decretos, INs e FAQs em Markdown
+├── eval/                 # dataset de exemplo e script de avaliação (RAGAS)
+├── ingest/
+│   ├── chunking.py       # quebra os arquivos .md preservando título e artigo
+│   ├── config.py         # variáveis de ambiente, modelos e parâmetros
+│   └── indexer.py        # gera embeddings e envia os chunks para o Qdrant
 ├── ui/
-│   └── streamlit_app.py
-├── requirements.txt
-└── .env.example
+│   ├── streamlit_app.py  # interface principal em Streamlit
+│   └── gradio_app.py     # interface alternativa em Gradio
+├── app.py                # entrypoint para rodar o Gradio (ex.: Hugging Face Spaces)
+└── requirements.txt      # dependências Python
 ```
 
-## Passo a passo para começar
+## Como baixar e rodar no seu computador
 
-### 1. Ambiente
+### 1. Pré-requisitos
+
+Você vai precisar de:
+
+- Python 3.11 ou 3.12 instalado
+- Git
+- Uma chave de API do Google AI Studio (para o Gemini)
+- Uma conta gratuita no Qdrant Cloud (para armazenar e buscar os vetores)
+- Opcional: uma chave da API do Tavily, caso queira ativar o fallback de busca na web
+
+### 2. Clonar o repositório e instalar as dependências
+
+Abra o terminal e baixe o projeto:
+
 ```bash
+git clone https://github.com/gabriellops/rag-licitacao.git
+cd rag-licitacao
+```
+
+Crie e ative um ambiente virtual:
+
+```bash
+# Linux / macOS
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+source .venv/bin/activate
+
+# Windows (PowerShell)
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 ```
 
-### 2. Credenciais
+Instale as bibliotecas do projeto e o Streamlit (que não vem listado no `requirements.txt` porque o Streamlit Cloud já o instala automaticamente):
+
 ```bash
-cp .env.example .env
+pip install -r requirements.txt
+pip install streamlit
 ```
-Preencha no `.env`:
-- `GOOGLE_API_KEY` (AI Studio)
-- `QDRANT_URL` e `QDRANT_API_KEY` (crie um cluster free em cloud.qdrant.io)
 
-### 3. Dados
-Coloque seus arquivos `.md` em `data/markdown/` (pode manter subpastas por tipo de norma).
+### 3. Configurar as chaves de acesso
 
-Confira a heurística `inferir_tipo_documento()` em `ingest/chunking.py` — ajuste as
-palavras-chave para bater com a nomenclatura real dos seus arquivos.
+Crie um arquivo chamado `.env` na raiz da pasta `rag-licitacao` com o conteúdo abaixo e preencha suas chaves:
 
-### 4. Indexação (rodar uma vez, e sempre que a base mudar)
+```env
+GOOGLE_API_KEY=sua_chave_do_google_ai_studio
+QDRANT_URL=https://seu-cluster.qdrant.io:6333
+QDRANT_API_KEY=sua_chave_do_qdrant
+QDRANT_COLLECTION=licitacao_rag
+
+# Opcional (necessário apenas para o fallback de busca na web)
+TAVILY_API_KEY=sua_chave_do_tavily
+```
+
+Nunca envie o arquivo `.env` para o GitHub (ele já está listado no `.gitignore`).
+
+### 4. Indexar os documentos no Qdrant
+
+Antes de usar o chat pela primeira vez, você precisa enviar os arquivos de `data/markdown/` para o seu cluster no Qdrant. Na primeira execução, o Python vai baixar o modelo `BAAI/bge-m3` automaticamente:
+
 ```bash
 python -m ingest.indexer
 ```
 
-### 5. Testar o grafo isoladamente (sem UI)
-```bash
-python -m app.graph
-```
+Você só precisa rodar esse comando novamente se adicionar ou alterar arquivos na pasta `data/markdown/`.
 
-### 6. Rodar a interface de testes
+### 5. Abrir o chatbot
+
+Com tudo configurado e indexado, inicie a interface do Streamlit:
+
 ```bash
 streamlit run ui/streamlit_app.py
 ```
 
-### 7. Avaliação
-Preencha `eval/dataset_exemplo.jsonl` com perguntas reais e respostas de referência, depois:
+O navegador deve abrir automaticamente no endereço local (normalmente `http://localhost:8501`).
+
+Se quiser testar apenas o fluxo no terminal, sem abrir interface visual, rode:
+
 ```bash
-python -m eval.evaluate
+python -m app.graph
 ```
-
-### 8. Publicar para outras pessoas testarem
-Opções gratuitas:
-- **Streamlit Community Cloud** (mais simples: conecta no GitHub e sobe sozinho)
-- **Hugging Face Spaces** (template Streamlit, CPU grátis)
-
-Lembre de configurar as variáveis de ambiente (`GOOGLE_API_KEY`, `QDRANT_URL`,
-`QDRANT_API_KEY`) como *secrets* na plataforma escolhida, nunca commitadas no repositório.
-
-## Pontos ainda abertos (TODO)
-- [ ] Busca híbrida real no Qdrant (hoje só denso; ver TODOs em `indexer.py`/`retriever.py`)
-- [ ] Ajustar `inferir_tipo_documento()` para a nomenclatura real dos arquivos
-- [ ] Preencher `eval/dataset_exemplo.jsonl` com perguntas e gabaritos reais
-- [ ] Revisar a integração NeMo Guardrails ↔ LangGraph em `app/main.py` conforme a
-      versão instalada das libs (a API deles muda com frequência)
-- [ ] Testar limites de cota do Gemini com múltiplos usuários simultâneos no Streamlit
