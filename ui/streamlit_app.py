@@ -54,59 +54,6 @@ PERGUNTA_PADRAO_ANEXO = (
     "e quais dúvidas posso ter a partir dele?"
 )
 
-# Permite arrastar e soltar PDF/DOCX em qualquer área da tela (conversa ou caixa de pergunta),
-# encaminhando os arquivos para o <input type="file"> do st.chat_input.
-st.iframe(
-    """
-    <script>
-    (function() {
-        const doc = window.parent.document;
-        if (doc.__liciteDragReady) return;
-        doc.__liciteDragReady = true;
-
-        const style = doc.createElement('style');
-        style.textContent = `
-            body.licite-drag::after {
-                content: "Solte o PDF ou DOCX aqui para anexar";
-                position: fixed; inset: 12px; z-index: 999999;
-                display: flex; align-items: center; justify-content: center;
-                border: 2px dashed #3b82f6; border-radius: 12px;
-                background: rgba(59, 130, 246, 0.10);
-                color: #1d4ed8; font-weight: 600; font-size: 1.1rem;
-                pointer-events: none;
-            }
-        `;
-        doc.head.appendChild(style);
-
-        const temArquivos = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
-
-        doc.addEventListener('dragover', (e) => {
-            if (temArquivos(e)) { e.preventDefault(); doc.body.classList.add('licite-drag'); }
-        });
-        doc.addEventListener('dragleave', (e) => {
-            if (!e.relatedTarget) doc.body.classList.remove('licite-drag');
-        });
-        doc.addEventListener('drop', (e) => {
-            if (!temArquivos(e)) return;
-            doc.body.classList.remove('licite-drag');
-            const input = doc.querySelector('[data-testid="stChatInput"] input[type="file"]');
-            if (!input) return;
-            e.preventDefault();
-            e.stopPropagation();
-            const dt = new DataTransfer();
-            Array.from(e.dataTransfer.files).forEach((f) => {
-                if (/\\.(pdf|docx)$/i.test(f.name)) dt.items.add(f);
-            });
-            if (!dt.files.length) return;
-            input.files = dt.files;
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-        }, true);
-    })();
-    </script>
-    """,
-    height=1,
-)
-
 
 _SUP = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
 
