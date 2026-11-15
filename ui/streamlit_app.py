@@ -16,11 +16,34 @@ import streamlit as st
 from app.main import responder
 
 st.set_page_config(page_title="Licite Mais")
+st.markdown(
+    """
+    <style>
+    /* Remove os ícones de usuário e robô */
+    [data-testid^="stChatMessageAvatar"] { display: none !important; }
+    /* Mensagem do assistente à esquerda */
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
+        margin-right: auto; max-width: 85%; width: fit-content;
+        border-radius: 14px; padding: 0.65rem 1rem;
+    }
+    /* Mensagem do usuário à direita */
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
+        margin-left: auto; max-width: 78%; width: fit-content;
+        border-radius: 14px; padding: 0.65rem 1rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 st.header("Seu assistente de licitações")
 st.caption("Pergunte, consulte as fontes e entenda as leis.")
 
+MENSAGEM_INICIAL = (
+    "Olá! Sou seu assistente virtual especializado em licitações e contratos públicos. "
+    "Como posso ajudar?"
+)
 if "mensagens" not in st.session_state:
-    st.session_state.mensagens = []
+    st.session_state.mensagens = [{"role": "assistant", "content": MENSAGEM_INICIAL}]
 if "docs" not in st.session_state:
     st.session_state.docs = {}
 
