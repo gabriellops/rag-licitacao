@@ -15,7 +15,8 @@ from app.main import responder
 st.set_page_config(page_title="Licite Mais")
 st.title("Licite Mais")
 st.caption(
-    "Seu assistente de licitações "
+    "# Seu assistente de licitações "
+    "Pergunte, consulte as fontes e entenda as leis."
 )
 
 if "mensagens" not in st.session_state:
