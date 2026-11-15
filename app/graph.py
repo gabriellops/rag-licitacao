@@ -79,12 +79,17 @@ def no_classificar(estado: EstadoRAG) -> EstadoRAG:
 
 @cronometrar("reescrever")
 def no_reescrever(estado: EstadoRAG) -> EstadoRAG:
+    tentativas = estado.get("tentativas", 0)
+    if tentativas == 0 and not (estado.get("historico") or "").strip():
+        estado["consulta_atual"] = estado["pergunta_original"]
+        estado["tentativas"] = 1
+        return estado
     base = estado.get("consulta_atual") or estado["pergunta_original"]
     resp = llm_rapido.invoke(PROMPT_REESCREVER.format(
         pergunta=base, historico=estado.get("historico", "")
     ))
     estado["consulta_atual"] = resp.content.strip()
-    estado["tentativas"] = estado.get("tentativas", 0) + 1
+    estado["tentativas"] = tentativas + 1
     return estado
 
 
@@ -292,8 +297,7 @@ def construir_grafo():
         "nao_encontrado": "nao_encontrado",
     })
 
-    g.add_edge("gerar", "checar")
-    g.add_edge("checar", END)
+    g.add_edge("gerar", END)
     g.add_edge("nao_encontrado", END)
     g.add_edge("saudacao", END)
     g.add_edge("fora_escopo", END)
