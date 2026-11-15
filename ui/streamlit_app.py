@@ -13,7 +13,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import streamlit as st
-import streamlit.components.v1 as components
 from app.main import responder
 
 st.set_page_config(page_title="Licite Mais")
@@ -34,7 +33,7 @@ PERGUNTA_PADRAO_ANEXO = (
 
 # Permite arrastar e soltar PDF/DOCX em qualquer área da tela (conversa ou caixa de pergunta),
 # encaminhando os arquivos para o <input type="file"> do st.chat_input.
-components.html(
+st.iframe(
     """
     <script>
     (function() {
