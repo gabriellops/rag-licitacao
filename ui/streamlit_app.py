@@ -12,10 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import streamlit as st
 from app.main import responder
 
-st.set_page_config(page_title="Assistente de Licitações", page_icon="📋")
+st.set_page_config(page_title="Licite Mais")
 st.title("Licite Mais")
 st.caption(
-    "Licite Mais"
+    "Seu assistente de licitações "
 )
 
 if "mensagens" not in st.session_state:
