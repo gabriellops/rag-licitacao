@@ -13,6 +13,7 @@ Os guardrails de entrada/saída (NeMo) envolvem a chamada a este grafo em app/ma
 ou em ui/streamlit_app.py — não ficam dentro do grafo para manter as responsabilidades separadas.
 """
 
+import re
 import time
 
 from typing import TypedDict, Optional
@@ -44,16 +45,34 @@ class EstadoRAG(TypedDict, total=False):
     consulta_atual: str
     historico: str
     em_escopo: bool
+    categoria: str
     chunks: list[dict]
     tentativas: int
     relevante: bool
     resposta: str
     fontes: list[dict]
 
+_REGEX_SAUDACAO = re.compile(
+    r"^\s*(?:oi+|ol[aá]+|opa+|e\s*a[ií]+|fala+|salve|bom\s*dia|boa\s*tarde|boa\s*noite|tudo\s*(?:bem|bom|certo)|td\s*bem|como\s*vai)(?:[\s,!?.]*)(?:tudo\s*bem[\s,!?]*)*$",
+    re.IGNORECASE,
+)
+
+
 @cronometrar("classificar")
 def no_classificar(estado: EstadoRAG) -> EstadoRAG:
+    if _REGEX_SAUDACAO.match(estado["pergunta_original"]):
+        estado["categoria"] = "saudacao"
+        estado["em_escopo"] = False
+        return estado
     resp = llm_rapido.invoke(PROMPT_CLASSIFICAR.format(pergunta=estado["pergunta_original"]))
-    estado["em_escopo"] = "licitacao" in resp.content.lower()
+    texto = resp.content.strip().lower()
+    if "saudacao" in texto:
+        estado["categoria"] = "saudacao"
+    elif "licitacao" in texto:
+        estado["categoria"] = "licitacao"
+    else:
+        estado["categoria"] = "fora_escopo"
+    estado["em_escopo"] = estado["categoria"] == "licitacao"
     return estado
 
 @cronometrar("reescrever")
@@ -151,6 +170,18 @@ def no_resposta_nao_encontrada(estado: EstadoRAG) -> EstadoRAG:
     return estado
 
 
+def no_resposta_saudacao(estado: EstadoRAG) -> EstadoRAG:
+    estado["resposta"] = (
+        "Olá! Sou o **Licite Mais**, um assistente especializado em licitações públicas. "
+        "Posso ajudar com dúvidas sobre leis (como a Lei nº 14.133/2021), decretos, "
+        "editais, termos de referência, prazos e etapas do processo licitatório — "
+        "e você também pode anexar um PDF ou DOCX para contextualizar sua dúvida. "
+        "Como posso ajudar?"
+    )
+    estado["chunks"] = []
+    return estado
+
+
 def no_resposta_fora_escopo(estado: EstadoRAG) -> EstadoRAG:
     estado["resposta"] = (
         "Posso ajudar apenas com dúvidas relacionadas a licitações públicas "
@@ -176,6 +207,9 @@ def no_resposta_fora_escopo(estado: EstadoRAG) -> EstadoRAG:
 
 
 def _rota_apos_classificar(estado: EstadoRAG) -> str:
+    cat = estado.get("categoria")
+    if cat == "saudacao":
+        return "saudacao"
     return "reescrever" if estado["em_escopo"] else "fora_escopo"
 
 
@@ -197,12 +231,14 @@ def construir_grafo():
     g.add_node("gerar", no_gerar_resposta)
     g.add_node("checar", no_checar_fundamentacao)
     g.add_node("nao_encontrado", no_resposta_nao_encontrada)
+    g.add_node("saudacao", no_resposta_saudacao)
     g.add_node("fora_escopo", no_resposta_fora_escopo)
 
     g.set_entry_point("classificar")
 
     g.add_conditional_edges("classificar", _rota_apos_classificar, {
         "reescrever": "reescrever",
+        "saudacao": "saudacao",
         "fora_escopo": "fora_escopo",
     })
 
@@ -218,6 +254,7 @@ def construir_grafo():
     g.add_edge("gerar", "checar")
     g.add_edge("checar", END)
     g.add_edge("nao_encontrado", END)
+    g.add_edge("saudacao", END)
     g.add_edge("fora_escopo", END)
 
     return g.compile()

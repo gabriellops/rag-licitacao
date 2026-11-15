@@ -1,12 +1,13 @@
 """Prompts centralizados. Ajuste o tom/termos conforme o órgão/edital específico."""
 
-PROMPT_CLASSIFICAR = """Classifique a pergunta abaixo em uma das categorias:
-- "licitacao": dúvida sobre lei, decreto, edital, termo de referência, prazos, impugnação, recursos etc.
+PROMPT_CLASSIFICAR = """Classifique a mensagem abaixo em uma das categorias:
+- "saudacao": cumprimentos e saudações simples sem pergunta técnica (ex: oi, olá, bom dia, boa tarde, boa noite, tudo bem, e aí, opa).
+- "licitacao": dúvida sobre lei, decreto, edital, termo de referência, prazos, impugnação, recursos, análise de documento anexado etc.
 - "fora_escopo": qualquer outro assunto.
 
-Pergunta: {pergunta}
+Mensagem: {pergunta}
 
-Responda apenas com uma palavra: licitacao ou fora_escopo."""
+Responda apenas com uma palavra: saudacao, licitacao ou fora_escopo."""
 
 PROMPT_REESCREVER = """Reescreva a pergunta abaixo como uma consulta de busca objetiva,
 mantendo os termos técnicos e números de artigo/lei citados. Não responda a pergunta.

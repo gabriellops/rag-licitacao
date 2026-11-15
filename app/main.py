@@ -28,6 +28,9 @@ async def processar_mensagem(pergunta_usuario: str, historico: str = "") -> dict
     estado_final = responder_pergunta(pergunta_usuario, historico=historico)
     resposta_bruta = estado_final["resposta"]
 
+    if estado_final.get("categoria") in ("saudacao", "fora_escopo"):
+        return {"resposta": resposta_bruta, "fontes": []}
+
     # 3) Rail de saída: aplica checagens de citação/disclaimer sobre a resposta do grafo
     #    (implementação simplificada chamando as actions diretamente)
     from app.guardrails import actions
