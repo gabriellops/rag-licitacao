@@ -5,5 +5,5 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from ingest.config import GEMINI_MODEL, GEMINI_MODEL_LITE
 
-llm_principal = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0.2)
+llm_principal = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0.45)
 llm_rapido = ChatGoogleGenerativeAI(model=GEMINI_MODEL_LITE, temperature=0)

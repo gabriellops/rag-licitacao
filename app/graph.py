@@ -111,13 +111,29 @@ def _numerar_fontes(chunks: list[dict]) -> dict:
 
 
 def _formatar_trechos(chunks: list[dict]) -> str:
+    """Agrupa trechos por número de fonte e remove o cabeçalho duplicado do texto,
+    entregando ao modelo blocos limpos e estruturados."""
     numeros = _numerar_fontes(chunks)
-    linhas = []
+    grupos: dict[int, dict] = {}
     for c in chunks:
-        ref_legivel = c["caminho_hierarquico"] or c["artigo"] or c["documento"]
-        prefixo = "[Fonte web] " if c.get("fonte_tipo") == "web" else ""
-        linhas.append(f"[{numeros[_chave_fonte(c)]}] {prefixo}{ref_legivel}\n{c['texto']}")
-    return "\n\n---\n\n".join(linhas)
+        n = numeros[_chave_fonte(c)]
+        ref = c["caminho_hierarquico"] or c["artigo"] or c["documento"]
+        origem = "web" if c.get("fonte_tipo") == "web" else "legislacao"
+        texto = c["texto"].strip()
+        if c["caminho_hierarquico"] and texto.startswith(c["caminho_hierarquico"]):
+            texto = texto[len(c["caminho_hierarquico"]):].lstrip()
+        if n not in grupos:
+            grupos[n] = {"origem": origem, "ref": ref, "textos": []}
+        grupos[n]["textos"].append(texto)
+
+    blocos = []
+    for n, info in grupos.items():
+        conteudo = "\n\n".join(info["textos"])
+        blocos.append(
+            f'<fonte id="{n}" origem="{info["origem"]}" referencia="{info["ref"]}">\n'
+            f"{conteudo}\n</fonte>"
+        )
+    return "\n\n".join(blocos)
 
 
 @cronometrar("buscar_web")
@@ -138,7 +154,9 @@ def no_avaliar_relevancia(estado: EstadoRAG) -> EstadoRAG:
 def no_gerar_resposta(estado: EstadoRAG) -> EstadoRAG:
     trechos = _formatar_trechos(estado["chunks"])
     resp = llm_principal.invoke(PROMPT_GERAR_RESPOSTA.format(
-        pergunta=estado["pergunta_original"], trechos=trechos
+        pergunta=estado["pergunta_original"],
+        historico=estado.get("historico") or "(sem histórico anterior)",
+        trechos=trechos,
     ))
     estado["resposta"] = resp.content
 
