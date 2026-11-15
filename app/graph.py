@@ -111,29 +111,32 @@ def _numerar_fontes(chunks: list[dict]) -> dict:
 
 
 def _formatar_trechos(chunks: list[dict]) -> str:
-    """Agrupa trechos por número de fonte e remove o cabeçalho duplicado do texto,
-    entregando ao modelo blocos limpos e estruturados."""
     numeros = _numerar_fontes(chunks)
-    grupos: dict[int, dict] = {}
+    linhas = []
     for c in chunks:
-        n = numeros[_chave_fonte(c)]
-        ref = c["caminho_hierarquico"] or c["artigo"] or c["documento"]
-        origem = "web" if c.get("fonte_tipo") == "web" else "legislacao"
+        ref_legivel = c["caminho_hierarquico"] or c["artigo"] or c["documento"]
+        prefixo = "[Fonte web] " if c.get("fonte_tipo") == "web" else ""
         texto = c["texto"].strip()
         if c["caminho_hierarquico"] and texto.startswith(c["caminho_hierarquico"]):
             texto = texto[len(c["caminho_hierarquico"]):].lstrip()
-        if n not in grupos:
-            grupos[n] = {"origem": origem, "ref": ref, "textos": []}
-        grupos[n]["textos"].append(texto)
+        linhas.append(f"[{numeros[_chave_fonte(c)]}] {prefixo}{ref_legivel}\n{texto}")
+    return "\n\n---\n\n".join(linhas)
 
-    blocos = []
-    for n, info in grupos.items():
-        conteudo = "\n\n".join(info["textos"])
-        blocos.append(
-            f'<fonte id="{n}" origem="{info["origem"]}" referencia="{info["ref"]}">\n'
-            f"{conteudo}\n</fonte>"
-        )
-    return "\n\n".join(blocos)
+
+_REGEX_ABERTURA_ROBOTICA = re.compile(
+    r"^\s*(?:com\s+base|de\s+acordo|segundo|conforme)\s+"
+    r"(?:nos|os|as|nas)\s+"
+    r"(?:trechos|documentos|fontes|textos|informações)\s+"
+    r"(?:fornecidos|disponíveis|disponibilizados|apresentados|recuperados|acima|citados|abaixo)[^,.:]*[,:]\s*",
+    re.IGNORECASE,
+)
+
+
+def _limpar_abertura_robotica(texto: str) -> str:
+    limpo = _REGEX_ABERTURA_ROBOTICA.sub("", texto, count=1).lstrip()
+    if limpo and limpo[0].islower():
+        limpo = limpo[0].upper() + limpo[1:]
+    return limpo
 
 
 @cronometrar("buscar_web")
@@ -154,11 +157,9 @@ def no_avaliar_relevancia(estado: EstadoRAG) -> EstadoRAG:
 def no_gerar_resposta(estado: EstadoRAG) -> EstadoRAG:
     trechos = _formatar_trechos(estado["chunks"])
     resp = llm_principal.invoke(PROMPT_GERAR_RESPOSTA.format(
-        pergunta=estado["pergunta_original"],
-        historico=estado.get("historico") or "(sem histórico anterior)",
-        trechos=trechos,
+        pergunta=estado["pergunta_original"], trechos=trechos
     ))
-    estado["resposta"] = resp.content
+    estado["resposta"] = _limpar_abertura_robotica(resp.content)
 
     # Fontes deduplicadas, direto do front matter de cada markdown
     vistos = set()
@@ -187,7 +188,7 @@ def no_checar_fundamentacao(estado: EstadoRAG) -> EstadoRAG:
     resp = llm_principal.invoke(PROMPT_CHECAR_FUNDAMENTACAO.format(
         trechos=trechos, resposta=estado["resposta"]
     ))
-    estado["resposta"] = resp.content
+    estado["resposta"] = _limpar_abertura_robotica(resp.content)
     return estado
 
 def no_resposta_nao_encontrada(estado: EstadoRAG) -> EstadoRAG:
@@ -228,7 +229,7 @@ def no_resposta_fora_escopo(estado: EstadoRAG) -> EstadoRAG:
 #     resp = llm_principal.invoke(PROMPT_CHECAR_FUNDAMENTACAO.format(
 #         trechos=trechos, resposta=estado["resposta"]
 #     ))
-#     estado["resposta"] = resp.content
+#     estado["resposta"] = _limpar_abertura_robotica(resp.content)
 #     estado["fontes"] = [
 #         {"documento": c["documento"], "referencia": c["caminho_hierarquico"] or c["artigo"]}
 #         for c in estado["chunks"]
