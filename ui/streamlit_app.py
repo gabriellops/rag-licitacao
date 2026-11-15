@@ -81,7 +81,7 @@ st.iframe(
     })();
     </script>
     """,
-    height=0,
+    height=1,
 )
 
 
