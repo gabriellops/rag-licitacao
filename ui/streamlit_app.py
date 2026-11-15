@@ -15,8 +15,7 @@ from app.main import responder
 st.set_page_config(page_title="Assistente de Licitações", page_icon="📋")
 st.title("Licite Mais")
 st.caption(
-    "Seu assistente de licitações "
-    "Este assistente não substitui parecer jurídico vinculante."
+    "Licite Mais"
 )
 
 if "mensagens" not in st.session_state:
