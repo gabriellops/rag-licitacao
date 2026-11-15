@@ -21,6 +21,7 @@ from langgraph.graph import StateGraph, END
 
 from app.llm import llm_principal, llm_rapido
 from app.retriever import recuperar_chunks
+from app.busca_web import buscar_na_web
 from app.prompts import (
     PROMPT_CLASSIFICAR, PROMPT_REESCREVER, PROMPT_AVALIAR_RELEVANCIA,
     PROMPT_GERAR_RESPOSTA, PROMPT_CHECAR_FUNDAMENTACAO,
@@ -49,6 +50,7 @@ class EstadoRAG(TypedDict, total=False):
     chunks: list[dict]
     tentativas: int
     relevante: bool
+    usou_fonte_web: bool
     resposta: str
     fontes: list[dict]
 
@@ -113,8 +115,17 @@ def _formatar_trechos(chunks: list[dict]) -> str:
     linhas = []
     for c in chunks:
         ref_legivel = c["caminho_hierarquico"] or c["artigo"] or c["documento"]
-        linhas.append(f"[{numeros[_chave_fonte(c)]}] {ref_legivel}\n{c['texto']}")
+        prefixo = "[Fonte web] " if c.get("fonte_tipo") == "web" else ""
+        linhas.append(f"[{numeros[_chave_fonte(c)]}] {prefixo}{ref_legivel}\n{c['texto']}")
     return "\n\n---\n\n".join(linhas)
+
+
+@cronometrar("buscar_web")
+def no_buscar_web(estado: EstadoRAG) -> EstadoRAG:
+    chunks_web = buscar_na_web(estado["pergunta_original"])
+    estado["chunks"] = chunks_web
+    estado["usou_fonte_web"] = bool(chunks_web)
+    return estado
 
 @cronometrar("avaliar_relevancia")
 def no_avaliar_relevancia(estado: EstadoRAG) -> EstadoRAG:
@@ -145,6 +156,7 @@ def no_gerar_resposta(estado: EstadoRAG) -> EstadoRAG:
             "nome": c["titulo"],
             "url": c["fonte_url"],
             "referencia": c["caminho_hierarquico"] or c["artigo"],
+            "fonte_tipo": c.get("fonte_tipo", "base"),
         })
     estado["fontes"] = fontes
     return estado
@@ -217,8 +229,12 @@ def _rota_apos_avaliar(estado: EstadoRAG) -> str:
     if estado["relevante"]:
         return "gerar"
     if estado["tentativas"] >= MAX_LOOPS_REESCRITA:
-        return "nao_encontrado"
+        return "buscar_web"
     return "reescrever"
+
+
+def _rota_apos_buscar_web(estado: EstadoRAG) -> str:
+    return "gerar" if estado.get("usou_fonte_web") else "nao_encontrado"
 
 
 def construir_grafo():
@@ -228,6 +244,7 @@ def construir_grafo():
     g.add_node("reescrever", no_reescrever)
     g.add_node("recuperar", no_recuperar)
     g.add_node("avaliar", no_avaliar_relevancia)
+    g.add_node("buscar_web", no_buscar_web)
     g.add_node("gerar", no_gerar_resposta)
     g.add_node("checar", no_checar_fundamentacao)
     g.add_node("nao_encontrado", no_resposta_nao_encontrada)
@@ -248,6 +265,11 @@ def construir_grafo():
     g.add_conditional_edges("avaliar", _rota_apos_avaliar, {
         "gerar": "gerar",
         "reescrever": "reescrever",
+        "buscar_web": "buscar_web",
+    })
+
+    g.add_conditional_edges("buscar_web", _rota_apos_buscar_web, {
+        "gerar": "gerar",
         "nao_encontrado": "nao_encontrado",
     })
 

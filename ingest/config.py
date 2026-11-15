@@ -34,3 +34,6 @@ CHUNK_OVERLAP = 150
 # --- Recuperação ---
 TOP_K_RETRIEVE = int(os.getenv("TOP_K_RETRIEVE", 12))
 TOP_K_RERANK = int(os.getenv("TOP_K_RERANK", 6))
+
+# --- Busca web (Tavily) ---
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")

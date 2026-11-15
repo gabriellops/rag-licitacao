@@ -107,10 +107,11 @@ def _renderizar_fontes(fontes: list[dict]):
     for i, f in enumerate(fontes, start=1):
         n = f.get("numero", i)
         ref = f.get("referencia") or f["nome"]
+        rotulo = "🌐 " if f.get("fonte_tipo") == "web" else ""
         if f.get("url"):
-            st.markdown(f"**{n}.** [{ref}]({f['url']})")
+            st.markdown(f"**{n}.** {rotulo}[{ref}]({f['url']})")
         else:
-            st.markdown(f"**{n}.** {ref}")
+            st.markdown(f"**{n}.** {rotulo}{ref}")
 
 
 def _extrair_texto_bytes(nome: str, dados: bytes) -> str:
