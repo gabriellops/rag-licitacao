@@ -1,6 +1,7 @@
 """Interface simples em Streamlit para testadores externos.
 Rodar com: streamlit run ui/streamlit_app.py (a partir da RAIZ do projeto)
 """
+import re
 import sys
 from pathlib import Path
 
@@ -20,18 +21,31 @@ if "mensagens" not in st.session_state:
     st.session_state.mensagens = []
 
 
+_SUP = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
+def _citacoes_para_superscrito(texto: str) -> str:
+    """Converte citações [1], [2], [3] ou [1, 2] em ¹,²,³."""
+    def grupo(m):
+        return ",".join(n.translate(_SUP) for n in re.findall(r"\d+", m.group(0)))
+    bloco = r"\[\d+(?:\s*,\s*\d+)*\]"
+    return re.sub(rf"{bloco}(?:\s*,?\s*{bloco})*", grupo, texto)
+
+
 def _renderizar_fontes(fontes: list[dict]):
-    """Mostra a lista de fontes com nome oficial + link clicável (quando houver),
-    sem nunca expor o nome do arquivo .md.
+    """Mostra a lista de fontes numeradas + link clicável (quando houver),
+    sem expor o nome do arquivo .md.
     """
     if not fontes:
         st.caption("Nenhuma fonte específica retornada para esta resposta.")
         return
-    for f in fontes:
+    for i, f in enumerate(fontes, start=1):
+        n = f.get("numero", i)
+        ref = f.get("referencia") or f["nome"]
         if f.get("url"):
-            st.markdown(f"- [{f['nome']}]({f['url']}) — {f['referencia']}")
+            st.markdown(f"**{n}.** [{ref}]({f['url']})")
         else:
-            st.markdown(f"- **{f['nome']}** — {f['referencia']}")
+            st.markdown(f"**{n}.** {ref}")
 
 
 for msg in st.session_state.mensagens:
@@ -55,13 +69,14 @@ if pergunta:
             )
             resultado = responder(pergunta, historico=historico_textual)
 
-        st.markdown(resultado["resposta"])
+        resposta_formatada = _citacoes_para_superscrito(resultado["resposta"])
+        st.markdown(resposta_formatada)
         if resultado.get("fontes"):
             with st.expander("Fontes consultadas"):
                 _renderizar_fontes(resultado["fontes"])
 
     st.session_state.mensagens.append({
         "role": "assistant",
-        "content": resultado["resposta"],
+        "content": resposta_formatada,
         "fontes": resultado.get("fontes", []),
     })
