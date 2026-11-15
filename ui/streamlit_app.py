@@ -13,8 +13,8 @@ import streamlit as st
 from app.main import responder
 
 st.set_page_config(page_title="Licite Mais")
-st.title("Seu assistente de licitações")
-st.caption("Pergunte, consulte as fontes e continue a conversa.")
+st.header("Seu assistente de licitações")
+st.caption("Pergunte, consulte as fontes e entenda as leis.")
 
 if "mensagens" not in st.session_state:
     st.session_state.mensagens = []
