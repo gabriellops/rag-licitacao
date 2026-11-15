@@ -34,7 +34,7 @@ PERGUNTA_PADRAO_ANEXO = (
 
 # Permite arrastar e soltar PDF/DOCX em qualquer área da tela (conversa ou caixa de pergunta),
 # encaminhando os arquivos para o <input type="file"> do st.chat_input.
-components.v1.html(
+components.html(
     """
     <script>
     (function() {
