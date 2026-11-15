@@ -75,7 +75,7 @@ def chunk_documento(caminho_arquivo: str, conteudo: str) -> list[Document]:
     # Prioriza o front matter; cai na heurística pelo nome só se o .md não tiver front matter
     titulo_oficial = frontmatter.get("titulo", nome_arquivo)
     tipo_doc = (frontmatter.get("tipo") or inferir_tipo_documento(nome_arquivo)).lower()
-    fonte_url = frontmatter.get("fonte", "")
+    fonte_url = frontmatter.get("fonte") or frontmatter.get("source", "")
     numero = frontmatter.get("numero", "")
     data_norma = str(frontmatter.get("data", ""))
     revogada = frontmatter.get("revogada", False)
