@@ -20,7 +20,6 @@ from langgraph.graph import StateGraph, END
 
 from app.llm import llm_principal, llm_rapido
 from app.retriever import recuperar_chunks
-from app.reranker import rerank_chunks
 from app.prompts import (
     PROMPT_CLASSIFICAR, PROMPT_REESCREVER, PROMPT_AVALIAR_RELEVANCIA,
     PROMPT_GERAR_RESPOSTA, PROMPT_CHECAR_FUNDAMENTACAO,
